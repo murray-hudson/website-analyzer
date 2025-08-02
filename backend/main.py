@@ -23,7 +23,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000", 
-        "https://your-frontend-domain.vercel.app",  # Replace with your actual Vercel domain
+        "https://website-analyzer-orcin.vercel.app",  # Your actual Vercel domain
         "https://*.vercel.app"  # Allow all Vercel subdomains
     ],
     allow_credentials=True,
