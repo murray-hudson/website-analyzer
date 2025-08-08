@@ -332,7 +332,7 @@ function App() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 1200;
-    canvas.height = 1600;
+    canvas.height = 2000; // Increased height to accommodate screenshot
     
     // Background
     ctx.fillStyle = '#0f172a';
@@ -357,107 +357,172 @@ function App() {
     ctx.fillText(`Analyzed: ${inputMode === 'url' ? url : 'Uploaded Screenshot'}`, canvas.width / 2, 120);
     ctx.fillText(`Generated: ${new Date().toLocaleDateString()}`, canvas.width / 2, 150);
     
-    // Analysis results
+    // Add screenshot if available
     let yPosition = 220;
-    ctx.font = 'bold 20px Arial, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#f9fafb';
-    ctx.fillText('Analysis Results:', 50, yPosition);
-    yPosition += 40;
-    
-    spectrumCategories.filter(category => selectedCategories[category.key]).forEach(category => {
-      const categoryData = spectrumData[category.key];
-      if (!categoryData) return;
+    if (image) {
+      // Screenshot section title
+      ctx.fillStyle = '#f9fafb';
+      ctx.font = 'bold 20px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('Website Screenshot:', 50, yPosition);
+      yPosition += 40;
       
-      const leftObj = categoryData[category.left] || {};
-      const rightObj = categoryData[category.right] || {};
-      const leftValue = typeof leftObj.percentage === 'number' ? leftObj.percentage : 0;
-      const rightValue = typeof rightObj.percentage === 'number' ? rightObj.percentage : 0;
-      
-      // Category title
-      ctx.fillStyle = '#60a5fa';
-      ctx.font = 'bold 18px Arial, sans-serif';
-      ctx.fillText(`${category.left} vs ${category.right}`, 50, yPosition);
-      yPosition += 30;
-      
-      // Percentages
-      ctx.fillStyle = '#3b82f6';
-      ctx.font = '16px Arial, sans-serif';
-      ctx.fillText(`${category.left}: ${leftValue}%`, 70, yPosition);
-      ctx.fillStyle = '#ef4444';
-      ctx.fillText(`${category.right}: ${rightValue}%`, 300, yPosition);
-      yPosition += 25;
-      
-      // Reasoning if available
-      if (leftObj.reasoning || rightObj.reasoning) {
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '14px Arial, sans-serif';
-        if (leftObj.reasoning) {
-          const words = leftObj.reasoning.split(' ');
-          let line = '';
-          for (let word of words) {
-            const testLine = line + word + ' ';
-            if (ctx.measureText(testLine).width > 1000) {
-              ctx.fillText(line, 70, yPosition);
-              yPosition += 20;
-              line = word + ' ';
-            } else {
-              line = testLine;
-            }
-          }
-          if (line) {
-            ctx.fillText(line, 70, yPosition);
-            yPosition += 20;
-          }
+      // Create a new image element to load the screenshot
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Calculate dimensions to fit within canvas width while maintaining aspect ratio
+        const maxWidth = canvas.width - 100; // 50px padding on each side
+        const maxHeight = 400;
+        let drawWidth = img.width;
+        let drawHeight = img.height;
+        
+        // Scale down if too large
+        if (drawWidth > maxWidth) {
+          const ratio = maxWidth / drawWidth;
+          drawWidth = maxWidth;
+          drawHeight = img.height * ratio;
         }
-        if (rightObj.reasoning) {
-          const words = rightObj.reasoning.split(' ');
-          let line = '';
-          for (let word of words) {
-            const testLine = line + word + ' ';
-            if (ctx.measureText(testLine).width > 1000) {
-              ctx.fillText(line, 70, yPosition);
-              yPosition += 20;
-              line = word + ' ';
-            } else {
-              line = testLine;
-            }
-          }
-          if (line) {
-            ctx.fillText(line, 70, yPosition);
-            yPosition += 20;
-          }
+        
+        if (drawHeight > maxHeight) {
+          const ratio = maxHeight / drawHeight;
+          drawHeight = maxHeight;
+          drawWidth = drawWidth * ratio;
         }
-      }
-      
-      yPosition += 20;
-      
-      // Check if we need a new page
-      if (yPosition > 1400) {
-        // Add page break indicator
+        
+        // Center the image horizontally
+        const x = (canvas.width - drawWidth) / 2;
+        
+        // Draw screenshot with border
         ctx.fillStyle = '#374151';
-        ctx.fillRect(0, yPosition, canvas.width, 2);
+        ctx.fillRect(x - 4, yPosition - 4, drawWidth + 8, drawHeight + 8);
+        ctx.drawImage(img, x, yPosition, drawWidth, drawHeight);
+        
+        yPosition += drawHeight + 40;
+        
+        // Continue with analysis results
+        addAnalysisResults(yPosition);
+      };
+      
+      img.onerror = () => {
+        // If image fails to load, continue without it
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '16px Arial, sans-serif';
+        ctx.fillText('Screenshot unavailable', 50, yPosition);
         yPosition += 40;
-      }
-    });
+        addAnalysisResults(yPosition);
+      };
+      
+      img.src = image;
+    } else {
+      // No screenshot available, continue with analysis
+      addAnalysisResults(yPosition);
+    }
     
-    // Watermark
-    ctx.fillStyle = 'rgba(156, 163, 175, 0.3)';
-    ctx.font = 'italic 16px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Made with Perceptr web analysis tool', canvas.width / 2, canvas.height - 30);
-    
-    // Convert to blob and download
-    canvas.toBlob((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `perceptr-analysis-${new Date().toISOString().split('T')[0]}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
+    function addAnalysisResults(startYPosition) {
+      let yPosition = startYPosition;
+      
+      // Analysis results title
+      ctx.fillStyle = '#f9fafb';
+      ctx.font = 'bold 20px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('Analysis Results:', 50, yPosition);
+      yPosition += 40;
+      
+      spectrumCategories.filter(category => selectedCategories[category.key]).forEach(category => {
+        const categoryData = spectrumData[category.key];
+        if (!categoryData) return;
+        
+        const leftObj = categoryData[category.left] || {};
+        const rightObj = categoryData[category.right] || {};
+        const leftValue = typeof leftObj.percentage === 'number' ? leftObj.percentage : 0;
+        const rightValue = typeof rightObj.percentage === 'number' ? rightObj.percentage : 0;
+        
+        // Category title
+        ctx.fillStyle = '#60a5fa';
+        ctx.font = 'bold 18px Arial, sans-serif';
+        ctx.fillText(`${category.left} vs ${category.right}`, 50, yPosition);
+        yPosition += 30;
+        
+        // Percentages
+        ctx.fillStyle = '#3b82f6';
+        ctx.font = '16px Arial, sans-serif';
+        ctx.fillText(`${category.left}: ${leftValue}%`, 70, yPosition);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText(`${category.right}: ${rightValue}%`, 300, yPosition);
+        yPosition += 25;
+        
+        // Reasoning if available
+        if (leftObj.reasoning || rightObj.reasoning) {
+          ctx.fillStyle = '#9ca3af';
+          ctx.font = '14px Arial, sans-serif';
+          if (leftObj.reasoning) {
+            const words = leftObj.reasoning.split(' ');
+            let line = '';
+            for (let word of words) {
+              const testLine = line + word + ' ';
+              if (ctx.measureText(testLine).width > 1000) {
+                ctx.fillText(line, 70, yPosition);
+                yPosition += 20;
+                line = word + ' ';
+              } else {
+                line = testLine;
+              }
+            }
+            if (line) {
+              ctx.fillText(line, 70, yPosition);
+              yPosition += 20;
+            }
+          }
+          if (rightObj.reasoning) {
+            const words = rightObj.reasoning.split(' ');
+            let line = '';
+            for (let word of words) {
+              const testLine = line + word + ' ';
+              if (ctx.measureText(testLine).width > 1000) {
+                ctx.fillText(line, 70, yPosition);
+                yPosition += 20;
+                line = word + ' ';
+              } else {
+                line = testLine;
+              }
+            }
+            if (line) {
+              ctx.fillText(line, 70, yPosition);
+              yPosition += 20;
+            }
+          }
+        }
+        
+        yPosition += 20;
+        
+        // Check if we need a new page
+        if (yPosition > 1800) {
+          // Add page break indicator
+          ctx.fillStyle = '#374151';
+          ctx.fillRect(0, yPosition, canvas.width, 2);
+          yPosition += 40;
+        }
+      });
+      
+      // Watermark
+      ctx.fillStyle = 'rgba(156, 163, 175, 0.3)';
+      ctx.font = 'italic 16px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Made with Perceptr web analysis tool', canvas.width / 2, canvas.height - 30);
+      
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `perceptr-analysis-${new Date().toISOString().split('T')[0]}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
   };
 
   const spectrumCategories = [
