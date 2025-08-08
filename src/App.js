@@ -326,6 +326,140 @@ function App() {
     setLoading(false);
   };
 
+  const generateShareableDocument = () => {
+    if (!spectrumData) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1200;
+    canvas.height = 1600;
+    
+    // Background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Gradient background
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#1e293b');
+    gradient.addColorStop(1, '#0f172a');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Title
+    ctx.fillStyle = '#60a5fa';
+    ctx.font = 'bold 48px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Perceptr - Website Analysis Report', canvas.width / 2, 80);
+    
+    // Subtitle
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '24px Arial, sans-serif';
+    ctx.fillText(`Analyzed: ${inputMode === 'url' ? url : 'Uploaded Screenshot'}`, canvas.width / 2, 120);
+    ctx.fillText(`Generated: ${new Date().toLocaleDateString()}`, canvas.width / 2, 150);
+    
+    // Analysis results
+    let yPosition = 220;
+    ctx.font = 'bold 20px Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f9fafb';
+    ctx.fillText('Analysis Results:', 50, yPosition);
+    yPosition += 40;
+    
+    spectrumCategories.filter(category => selectedCategories[category.key]).forEach(category => {
+      const categoryData = spectrumData[category.key];
+      if (!categoryData) return;
+      
+      const leftObj = categoryData[category.left] || {};
+      const rightObj = categoryData[category.right] || {};
+      const leftValue = typeof leftObj.percentage === 'number' ? leftObj.percentage : 0;
+      const rightValue = typeof rightObj.percentage === 'number' ? rightObj.percentage : 0;
+      
+      // Category title
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = 'bold 18px Arial, sans-serif';
+      ctx.fillText(`${category.left} vs ${category.right}`, 50, yPosition);
+      yPosition += 30;
+      
+      // Percentages
+      ctx.fillStyle = '#3b82f6';
+      ctx.font = '16px Arial, sans-serif';
+      ctx.fillText(`${category.left}: ${leftValue}%`, 70, yPosition);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillText(`${category.right}: ${rightValue}%`, 300, yPosition);
+      yPosition += 25;
+      
+      // Reasoning if available
+      if (leftObj.reasoning || rightObj.reasoning) {
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '14px Arial, sans-serif';
+        if (leftObj.reasoning) {
+          const words = leftObj.reasoning.split(' ');
+          let line = '';
+          for (let word of words) {
+            const testLine = line + word + ' ';
+            if (ctx.measureText(testLine).width > 1000) {
+              ctx.fillText(line, 70, yPosition);
+              yPosition += 20;
+              line = word + ' ';
+            } else {
+              line = testLine;
+            }
+          }
+          if (line) {
+            ctx.fillText(line, 70, yPosition);
+            yPosition += 20;
+          }
+        }
+        if (rightObj.reasoning) {
+          const words = rightObj.reasoning.split(' ');
+          let line = '';
+          for (let word of words) {
+            const testLine = line + word + ' ';
+            if (ctx.measureText(testLine).width > 1000) {
+              ctx.fillText(line, 70, yPosition);
+              yPosition += 20;
+              line = word + ' ';
+            } else {
+              line = testLine;
+            }
+          }
+          if (line) {
+            ctx.fillText(line, 70, yPosition);
+            yPosition += 20;
+          }
+        }
+      }
+      
+      yPosition += 20;
+      
+      // Check if we need a new page
+      if (yPosition > 1400) {
+        // Add page break indicator
+        ctx.fillStyle = '#374151';
+        ctx.fillRect(0, yPosition, canvas.width, 2);
+        yPosition += 40;
+      }
+    });
+    
+    // Watermark
+    ctx.fillStyle = 'rgba(156, 163, 175, 0.3)';
+    ctx.font = 'italic 16px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Made with Perceptr web analysis tool', canvas.width / 2, canvas.height - 30);
+    
+    // Convert to blob and download
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `perceptr-analysis-${new Date().toISOString().split('T')[0]}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  };
+
   const spectrumCategories = [
     { key: 'Lively vs Professional', left: 'Lively', right: 'Professional' },
     { key: 'Minimalist vs Feature dense', left: 'Minimalist', right: 'Feature dense' },
@@ -723,16 +857,53 @@ function App() {
 
           {spectrumData && (
             <div style={{ marginBottom: '48px' }}>
-              <h2 style={{ 
-                fontSize: '32px', 
-                fontWeight: '800', 
-                color: '#f9fafb', 
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
                 marginBottom: '32px',
-                textAlign: 'center',
-                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                flexWrap: 'wrap',
+                gap: '16px'
               }}>
-                {inputMode === 'url' ? 'Website' : 'Screenshot'} Theme Analysis
-              </h2>
+                <h2 style={{ 
+                  fontSize: '32px', 
+                  fontWeight: '800', 
+                  color: '#f9fafb',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                  margin: 0
+                }}>
+                  {inputMode === 'url' ? 'Website' : 'Screenshot'} Theme Analysis
+                </h2>
+                <button
+                  onClick={generateShareableDocument}
+                  style={{
+                    padding: '12px 24px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                  }}
+                >
+                  <span style={{ fontSize: '16px' }}>📄</span>
+                  Share Results
+                </button>
+              </div>
               <div style={{ 
                 background: 'rgba(17, 24, 39, 0.5)', 
                 padding: '32px', 
